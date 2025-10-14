@@ -6,7 +6,7 @@ import albumentations as A
 from albumentations.pytorch.transforms import ToTensorV2
 
 def get_transforms(train: bool):
-    # === DÙNG CHO SSD (bắt buộc 320x320) ===
+    # DÙNG CHO SSD (bắt buộc 320x320)
     if train:
         return A.Compose([
             A.Resize(320, 320),
@@ -31,7 +31,6 @@ def get_transforms_faster(train: bool):
             A.HorizontalFlip(p=0.5),
             A.ColorJitter(0.3, 0.3, 0.3, 0.3, p=0.5),
         ]
-    # Quan trọng: ảnh float trong [0,1] để torchvision tự normalize
     aug += [
         A.ToFloat(max_value=255.0, always_apply=True),
         ToTensorV2(),
@@ -42,31 +41,12 @@ def get_transforms_faster(train: bool):
     )
 
 def get_transforms_b0_embed(size: int = 224):
-    """
-    Dùng khi bạn làm EMBEDDING bằng EfficientNet-B0 trên ROI (đã crop).
-    Nếu vẫn muốn lấy ảnh gốc qua dataset rồi crop theo bbox, bạn có thể dùng pipeline riêng.
-    Ở đây chỉ cung cấp chuẩn hoá 224 để tham khảo.
-    """
     return A.Compose([
         A.Resize(size, size),
         A.Normalize((0.485,0.456,0.406),(0.229,0.224,0.225)),
         ToTensorV2(),
     ])
-# ======= FASTER R-CNN (TỰ RESIZE BÊN TRONG MODEL) =======
-
-
-def get_transforms_resnet50_faster(train: bool):
-    """
-    Alias cho Faster R-CNN ResNet50-FPN (giống hệt get_transforms_faster).
-    Đặt tên rõ để bạn gọi đúng theo backbone nếu thích.
-    """
-    return get_transforms_faster(train)
-
 class COCODataset(torch.utils.data.Dataset):
-    """
-    Y HỆT SSD: 1-class detector
-    - background = 0, palm = 1
-    """
     def __init__(self, img_root, ann_file, transform=None):
         self.coco_ds = CocoDetection(img_root, ann_file)
         self.ids = self.coco_ds.ids
@@ -100,7 +80,6 @@ class COCODataset(torch.utils.data.Dataset):
             boxes.append([x, y, x2, y2])
             labels.append(self.cat2label[cat_id])  # -> 1
 
-        # Albumentations cần >=1 bbox nếu có bbox_params
         if len(boxes) == 0:
             boxes = [[0, 0, 1, 1]]; labels = [0]
 

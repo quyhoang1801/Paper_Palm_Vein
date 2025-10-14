@@ -7,7 +7,6 @@ __pycache__/
 .venv/
 .env
 __init__.py
-rois
 
 # Jupyter
 .ipynb_checkpoints/
@@ -27,9 +26,7 @@ Thumbs.db
 *.fls
 
 # Logs & outputs
-logs/
-output/
-*.log
+plotss
 
 # COCO/Images cache
 *.cache

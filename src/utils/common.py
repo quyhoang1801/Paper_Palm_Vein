@@ -9,7 +9,6 @@ def seed_everything(seed: int):
 def get_device():
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# AMP context (tương thích nhiều phiên bản)
 try:
     from torch.amp import autocast as autocast_amp
     def amp_ctx(enabled: bool):

@@ -1,11 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Đánh giá mô hình SSDLite320-MobileNetV3:
-- mAP@0.5:0.95 (COCOeval) + mAP@0.3
-- Precision / Recall / F1 (macro)
-- Confusion Matrix (lưu PNG)
-- (tuỳ chọn) quét ngưỡng confidence để tối ưu F1
-"""
 import sys, pathlib
 ROOT = pathlib.Path(__file__).resolve().parents[1]   # D:\PMT_Paper
 
@@ -45,7 +37,6 @@ def load_cfg(path):
     if not p.is_file():
         raise FileNotFoundError(f"Không thấy config: {p}")
     cfg = yaml.safe_load(p.read_text(encoding="utf-8"))
-    # expand ${root_path}
     root = cfg.get("root_path", "")
     for k in ["train_ann", "val_ann", "test_ann"]:
         if isinstance(cfg.get(k), str):
@@ -93,7 +84,6 @@ def plot_confusion_matrix(cm, class_names, out_png):
 
 
 def sweep_confidence(model, loader, num_classes, device, conf_list):
-    # Trả về dict {conf: (prec, rec, f1)}
     out = {}
     for c in conf_list:
         prec, rec, f1, _ = detection_prf_cm(model, loader, num_classes,
@@ -115,8 +105,6 @@ def main():
     seed_everything(cfg.get("seed", 42))
     device = get_device()
     print("Device:", device)
-
-    # loader
     ds, loader = build_loader(cfg, split=args.split,
                               batch=cfg["batch_val"],
                               workers=cfg["num_workers"],
@@ -127,12 +115,10 @@ def main():
     label2cat = {1: gt_cat_ids[0]}
     print(f"GT category_ids ({args.split}):", gt_cat_ids)
 
-    # model
     num_classes = ds.num_classes  # 2 (bg + palm)
     model = ssdlite320_mobilenet_v3_large(weights_backbone="DEFAULT", num_classes=num_classes).to(device)
     save_dir = PROJECT_ROOT / "output"
     save_dir.mkdir(parents=True, exist_ok=True)
-    # khi lưu:
     torch.save(model.state_dict(), save_dir / "best_model.pth")
     ckpt = Path(args.weights)
     if not ckpt.is_absolute():
@@ -142,12 +128,10 @@ def main():
     model.load_state_dict(torch.load(str(ckpt), map_location=device))
     model.eval()
 
-    # mAP COCO
     map_std, map_03 = coco_map(model, loader, coco_gt=coco_gt, label2cat=label2cat,
                                conf_thres=args.conf, device=device)
     print(f"[{args.split}] mAP@0.5:0.95 = {map_std:.4f} | mAP@0.3 = {map_03:.4f}")
 
-    # P/R/F1 + Confusion Matrix
     prec, rec, f1, cm = detection_prf_cm(model, loader, num_classes, iou_thr=0.5,
                                          score_thr=args.conf, device=device)
     print(f"[{args.split}] Prec={prec:.4f}  Rec={rec:.4f}  F1={f1:.4f}")
@@ -169,15 +153,14 @@ def main():
             "f1": f1,
             "cm": cm.tolist(),
         }, f, ensure_ascii=False, indent=2)
-    print(f"✓ Đã lưu: {out_dir/'metrics.json'} và confusion_matrix.png")
+    print(f"Đã lưu: {out_dir/'metrics.json'} và confusion_matrix.png")
 
-    # Sweep confidence (tuỳ chọn)
     if args.sweep:
         confs = np.linspace(0.05, 0.9, 18)
         table = sweep_confidence(model, loader, num_classes, device, confs)
         with open(out_dir / "conf_sweep.json", "w", encoding="utf-8") as f:
             json.dump(table, f, ensure_ascii=False, indent=2)
-        print(f"✓ Đã lưu: {out_dir/'conf_sweep.json'} (chọn ngưỡng tốt nhất theo F1)")
+        print(f"Đã lưu: {out_dir/'conf_sweep.json'} (chọn ngưỡng tốt nhất theo F1)")
 
 
 if __name__ == "__main__":
