@@ -198,15 +198,15 @@ class SSDROIExtractor:
 
 if __name__ == "__main__":
     extractor = SSDROIExtractor(
-        weights="output/checkpoints/best_loss.pth",
+        weights="output_newdataset/checkpoints/best_loss.pth",
         num_classes=2,
-        resize_wh=(640,480),   # width, height
+        resize_wh=(320,320),   # width, height
         class_names=("bg","palm"),
         vis_save=False
     )
 
     rois = extractor.process_image(
-        image_path=r"D:\PMT_\detect_roi\processed_dataset\autoUser4\img_3.png",
+        image_path=r"D:\PMT_\detect_roi\processed_dataset\autoUser689\img_8.png",
         out_dir=r"D:\PMT_Paper\runs\rois",
         conf=0.30,
         expand=0.10,
