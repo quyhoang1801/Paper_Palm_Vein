@@ -1,0 +1,43 @@
+{
+  "data": {
+    "train_dir": "train",
+    "valid_dir": "valid",
+    "test_dir": "test",
+    "train_json": "train.json",
+    "valid_json": "valid.json",
+    "test_json": "test.json"
+  },
+  "paths": {
+    "model_save": "efficientnet_b1_1ch_roi240_best.pth",
+    "classmap_save": "class_to_idx.json",
+    "plot_save": "plot_train_effb1_roi240.png",
+    "cm_valid_save": "cm_valid_best.npy",
+    "cm_test_save": "cm_test_best.npy"
+  },
+  "raw": {
+    "dtype": "uint8"
+  },
+  "train": {
+    "seed": 42,
+    "batch_size": 64,
+    "num_epochs": 200,
+    "num_workers": 0,
+    "img_size": 240,
+    "lr_backbone": 0.0003,
+    "lr_head": 0.001,
+    "weight_decay": 0.0001,
+    "freeze_epochs": 3,
+    "label_smoothing": 0.0
+  },
+  "normalize": {
+    "use": true,
+    "mean_1ch": [0.5],
+    "std_1ch": [0.5]
+  },
+  "augment": {
+    "rotation_deg": 5,
+    "p_rotation": 0.3,
+    "gaussian_blur_kernel": 3,
+    "p_blur": 0.15
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "paths": {
+    "model_path": "efficientnet_b1_1ch_roi240_best.pth",
+    "classmap_path": "class_to_idx.json",
+    "json_dir": "test",
+    "json_name": "test.json",
+    "out_csv": "predict_10users_results.csv"
+  },
+  "raw": {
+    "dtype": "uint8"
+  },
+  "infer": {
+    "img_size": 240,
+    "topk": 5,
+    "max_users": 10,
+    "seed": 42,
+    "users_pick": []
+  },
+  "normalize": {
+    "use": true,
+    "mean_1ch": [0.5],
+    "std_1ch": [0.5]
+  }
+}

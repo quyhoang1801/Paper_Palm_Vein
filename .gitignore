@@ -11,7 +11,7 @@ roboflow_dl1
 
 # Jupyter
 .ipynb_checkpoints/
-
+checkpoints
 # OS
 .DS_Store
 Thumbs.db

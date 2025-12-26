@@ -1,252 +1,196 @@
-# Palm ROI & SSD Training Pipeline
+# PMT_PAPER — Palm Vein Verification (ROI Detection + Feature Extraction)
 
-Dự án huấn luyện và đánh giá mô hình phát hiện/nhận diện ROI lòng bàn tay (palm) theo định dạng COCO, có sẵn script huấn luyện, đánh giá, tải dữ liệu từ Roboflow và API trích xuất ROI.
+Dự án phục vụ bài báo/đề tài **xác thực tĩnh mạch lòng bàn tay (Palm Vein)** theo pipeline 2 giai đoạn:
 
-## 1) Cấu trúc thư mục
+1) **Detection_ROI**: Phát hiện vùng ROI (bàn tay/ROI tĩnh mạch) từ ảnh đầu vào (RAW 8-bit, 640×480).  
+2) **Feature_Extraction_ROI**: Cắt ROI → chuẩn hoá kích thước → huấn luyện/ suy luận mô hình **EfficientNet-B1 (1 channel)** để **phân loại theo user** hoặc trích xuất đặc trưng phục vụ xác thực.
 
-```
+> Mục tiêu thực tế: đưa pipeline chạy được từ dữ liệu RAW → ROI → model xác thực/nhận dạng.
+
+---
+
+## 1. Cấu trúc thư mục
+
+```text
 PMT_PAPER/
-├─ configs/
-│  └─ ssd_palm.yaml             # Cấu hình huấn luyện/đánh giá
-├─ output/                       # Checkpoints, logs, kết quả mặc định
-├─ output_newdataset/            # (tùy chọn) Kết quả khi dùng bộ dữ liệu mới
-├─ plots/                        # Biểu đồ, hình minh họa kết quả
-├─ runs/                         # Log huấn luyện (tensorboard, txt, …)
-├─ scripts/
-│  ├─ eval_ssd_palm.py           # Đánh giá mô hình trên tập val/test
-│  ├─ extract_rois_api.py        # API trích xuất ROI từ ảnh/stream
-│  └─ train_ssd_palm.py          # Huấn luyện mô hình
-├─ src/
-│  ├─ dataset/
-│  │  ├─ coco_palm.py            # Dataset COCO (reader/transform)
-│  │  └─ download_data.py        # Tải dữ liệu từ Roboflow
-│  ├─ metrics/
-│  │  ├─ coco_eval.py            # Tính mAP theo COCO
-│  │  └─ prf.py                  # Precision/Recall/F1, confusion matrix
-│  └─ utils/
-│     └─ common.py               # Tiện ích chung: logging, seed, v.v.
-├─ .env                          # (khuyến nghị) Biến môi trường cục bộ
+├─ Detection_ROI/
+│  ├─ configs/
+│  │  ├─ fasterrcnn_resnet50_palm.yaml
+│  │  └─ ssd_palm.yaml
+│  ├─ output/
+│  │  ├─ output_faster/
+│  │  └─ output_ssd/
+│  ├─ output_newdataset/
+│  │  ├─ checkpoints/
+│  │  ├─ logs/
+│  │  ├─ plots/
+│  │  └─ pred_map_valid.json
+│  ├─ runs/
+│  ├─ scripts/
+│  │  ├─ faster/
+│  │  └─ ssd/
+│  └─ src/
+│
+├─ Feature_Extraction_ROI/
+│  ├─ configs/
+│  │  ├─ effb1_roi240_train.json
+│  │  └─ effb1_roi240_predict.json
+│  ├─ models/
+│  │  ├─ class_to_idx.json
+│  │  └─ efficientnet_b1_1ch_roi240_best.pth
+│  ├─ outputs/
+│  └─ Scripts/
+│     ├─ train.py
+│     ├─ predict.py
+│     └─ predict_random_10_user.py
+│
+├─ .env
+├─ .gitattributes
 ├─ .gitignore
-├─ README.md
-└─ requirements.txt
+├─ requirements.txt
+└─ README.md
 ```
 
-## 2) Yêu cầu hệ thống
+---
 
-- Python 3.9+ (khuyến nghị 3.10/3.11)
-- PyTorch + TorchVision phù hợp CUDA (nếu dùng GPU)
-- Các gói khác trong `requirements.txt`
+## 2. Yêu cầu môi trường
 
+- Python (khuyến nghị 3.9–3.11)
+- PyTorch + Torchvision (phù hợp CUDA nếu có GPU)
+- PIL/OpenCV, numpy, pandas, matplotlib, tqdm, yaml/json …
 
-## 3) Cài đặt nhanh
+Cài đặt nhanh:
 
 ```bash
-# 1) Tạo môi trường ảo (ví dụ venv)
-python -m venv .venv
-# Windows:
-.venv\\Scripts\\activate
-# Linux/Mac:
-source .venv/bin/activate
-
-# 2) Cài PyTorch (chọn bản phù hợp từ pytorch.org)
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121  # ví dụ CUDA 12.1
-
-# 3) Cài các phụ thuộc khác
 pip install -r requirements.txt
 ```
 
-## 4) Dữ liệu
+> Nếu bạn chạy GPU: cài PyTorch đúng phiên bản CUDA theo máy (khuyến nghị theo trang pytorch.org).
+
+---
+
+## 3. Dữ liệu & format
+
+### 3.1. Dữ liệu Detection (COCO)
+Module `Detection_ROI` được thiết kế để train/eval trên dataset theo **COCO format** (images + annotations JSON).
+
+Bạn cần:
+- Folder ảnh
+- File annotation COCO (train/val/test)
+
+Trong thực nghiệm, thư mục output và log được lưu trong:
+- `Detection_ROI/output/` hoặc `Detection_ROI/output_newdataset/`
+
+### 3.2. Dữ liệu Feature Extraction (ROI classification/embedding)
+Module `Feature_Extraction_ROI` dùng ROI đã cắt và chuẩn hoá (ví dụ 240×240) để train mô hình EfficientNetB1 (1 channel).
+
+Thông tin tập train/valid/test thường được mô tả trong:
+- `Feature_Extraction_ROI/configs/effb1_roi240_train.json`
+- `Feature_Extraction_ROI/configs/effb1_roi240_predict.json`
+
+Ngoài ra có:
+- `models/class_to_idx.json`: ánh xạ nhãn user ↔ chỉ số lớp  
+- `models/efficientnet_b1_1ch_roi240_best.pth`: trọng số tốt nhất
+
+---
+
+## 4. Pipeline tổng thể (khuyến nghị)
+
+### Bước A — RAW → ảnh xử lý được
+- RAW của bạn là **8-bit**, kích thước **640×480**.
+- Chuyển RAW → ảnh numpy `uint8` → (tuỳ chọn) cân bằng sáng/CLAHE → lưu PNG/JPG hoặc đưa thẳng vào detector.
+
+> Nếu bạn đã có script convert RAW→JPG ở nơi khác, hãy đặt vào `scripts/` hoặc tạo `tools/convert_raw.py` để tái lập pipeline.
+
+### Bước B — Detection ROI
+- Chạy mô hình detector (Faster R-CNN hoặc SSD) để lấy bbox ROI.
+- Crop ROI theo bbox (có thể padding một chút để ổn định).
+- Resize ROI về kích thước chuẩn cho feature model (ví dụ 240×240).
+
+### Bước C — Feature Extraction / Classification
+- Dùng EfficientNetB1 (1 channel) để:
+  - **Phân loại user** (closed-set) theo `class_to_idx.json`, hoặc
+  - Trích xuất embedding (nếu script của bạn hỗ trợ) để làm xác thực (so khớp cosine/ArcFace head…).
+
+---
+
+## 5. Chạy huấn luyện & suy luận
+
+> Lưu ý: tham số CLI phụ thuộc vào script trong `Detection_ROI/scripts/*`. README này cung cấp lệnh mẫu; bạn có thể mở file script để xem đúng tên arguments.
+
+### 5.1. Train / Eval ROI Detection
+
+**Faster R-CNN**
+```bash
+cd Detection_ROI
+python scripts/faster/train.py --config configs/fasterrcnn_resnet50_palm.yaml
+```
+
+**SSD**
+```bash
+cd Detection_ROI
+python scripts/ssd/train.py --config configs/ssd_palm.yaml
+```
+
+Kết quả thường nằm ở:
+- `Detection_ROI/output/*`
+- `Detection_ROI/output_newdataset/checkpoints/` (weights)
+- `Detection_ROI/output_newdataset/logs/` (log theo epoch)
+- `Detection_ROI/output_newdataset/plots/` (biểu đồ)
+- `Detection_ROI/output_newdataset/pred_map_valid.json` (map dự đoán/đánh giá)
+
+### 5.2. Train EfficientNetB1 (ROI 240, 1-channel)
 
 ```bash
-python src/dataset/download_data.py
+cd Feature_Extraction_ROI
+python Scripts/train.py --config configs/effb1_roi240_train.json
 ```
 
-Dữ liệu sẽ được tải về thư mục (ví dụ) `./roboflow_dl1/` hoặc theo cấu hình trong script.
+Output/weights:
+- `Feature_Extraction_ROI/models/`
+- `Feature_Extraction_ROI/outputs/`
 
-### 4.1 Dữ liệu tự có (COCO)
-
-- Chuẩn bị theo COCO: `annotations/{train,val,test}.json`, thư mục `images/`.
-- Cập nhật đường dẫn tương ứng trong `configs/ssd_palm.yaml` (mục `data`).
-
-## 5) Cấu hình (configs/ssd_palm.yaml)
-
-Mở và cập nhật những mục tối thiểu sau (tên khóa có thể khác đôi chút tùy bản code):
-
-- `data.train`, `data.val`, `data.test`: đường dẫn ảnh + annotations
-- `model.num_classes`: số lớp (bao gồm background nếu mô hình yêu cầu hoặc không, tùy kiến trúc)
-- `train.batch_size`, `train.epochs`, `train.lr`: siêu tham số cơ bản
-- `output_dir`, `log_dir`: nơi lưu checkpoint, log
-
-> Gợi ý: luôn **khóa seed** để tái lập kết quả (`seed: 42`) và bật lưu biểu đồ vào `./plots`.
-
-## 6) Huấn luyện
+### 5.3. Predict 1 ảnh / 1 thư mục ROI
 
 ```bash
-# Đơn giản nhất: dùng toàn bộ tham số trong YAML
-python scripts/train_ssd_palm.py --config configs/ssd_palm.yaml
+cd Feature_Extraction_ROI
+python Scripts/predict.py --config configs/effb1_roi240_predict.json
 ```
 
-- Checkpoints & log: `./output/` và `./runs/`
-- Biểu đồ loss/metrics (nếu có): `./plots/`
-- Nếu bạn tạo bộ dữ liệu mới, cấu hình để kết quả rơi vào `./output_newdataset/`
-
-> Trong Windows PowerShell nếu đường dẫn có khoảng trắng, nhớ thêm ngoặc kép:  
-> `python "scripts/train_ssd_palm.py" --config "configs/ssd_palm.yaml"`
-
-## 7) Đánh giá
+### 5.4. Predict ngẫu nhiên 10 user (demo)
 
 ```bash
-python scripts/eval_ssd_palm.py --config configs/ssd_palm.yaml --ckpt path/to/checkpoint.pt
+cd Feature_Extraction_ROI
+python Scripts/predict_random_10_user.py --config configs/effb1_roi240_predict.json
 ```
 
-- mAP (COCO) tính bởi `src/metrics/coco_eval.py`
-- P/R/F1, ma trận nhầm lẫn bởi `src/metrics/prf.py`
-- Kết quả tổng hợp và hình vẽ nằm trong `./plots/` (và/hoặc in ra console)
+---
 
+## 6. Gợi ý đánh giá (Metrics)
 
-```bash
-python scripts/extract_rois_api.py
-```
-API trả về toạ độ ROI/bounding boxes và (tùy phiên bản) ảnh đã vẽ khung.
+### Detection
+- mAP@0.5, mAP@0.5:0.95
+- Precision / Recall / F1 theo ngưỡng score + NMS
 
-## 8) Mô-đun chính
+### Feature / Classification (ROI)
+- Accuracy / Precision / Recall / F1 (valid/test)
+- Confusion matrix (nếu cần phân tích nhầm lẫn giữa user)
+- Nếu làm xác thực theo 1:N bằng embedding:
+  - ROC / AUC, FAR/FRR, EER
+  - Top-k retrieval accuracy
 
-- `src/dataset/coco_palm.py`: Reader COCO + augment/transform.
-- `src/metrics/coco_eval.py`: mAP theo chuẩn COCO.
-- `src/metrics/prf.py`: Precision/Recall/F1, confusion matrix.
-- `src/utils/common.py`: đặt seed, logger, lưu/đọc checkpoint, v.v.
+---
 
-## 9) Quy trình khuyến nghị
+## 7. Ghi chú tái lập (Reproducibility)
 
-1. **Chuẩn bị dữ liệu** (Roboflow hoặc COCO của bạn).  
-2. **Cập nhật `configs/ssd_palm.yaml`** (đường dẫn + num_classes + siêu tham số).  
-3. **Huấn luyện** với `train_ssd_palm.py`.  
-4. **Đánh giá** với `eval_ssd_palm.py`, xem mAP, P/R/F1 và biểu đồ trong `plots/`.  
-5. **(Tùy chọn) Triển khai** API `extract_rois_api.py` để trích ROI tự động.
-.
-# Palm ROI & SSD Training Pipeline
+- Cố định seed (numpy/torch/random)
+- Ghi log theo epoch (loss, metric)
+- Lưu best checkpoint theo metric mục tiêu (val_f1 hoặc val_acc hoặc val_map)
 
-Dự án huấn luyện và đánh giá mô hình phát hiện/nhận diện ROI lòng bàn tay (palm) theo định dạng COCO, có sẵn script huấn luyện, đánh giá, tải dữ liệu từ Roboflow và API trích xuất ROI.
+---
 
-## 1) Cấu trúc thư mục
+## 8. Troubleshooting nhanh
 
-```
-PMT_PAPER/
-├─ configs/
-│  └─ ssd_palm.yaml             # Cấu hình huấn luyện/đánh giá
-├─ output/                       # Checkpoints, logs, kết quả mặc định
-├─ output_newdataset/            # (tùy chọn) Kết quả khi dùng bộ dữ liệu mới
-├─ plots/                        # Biểu đồ, hình minh họa kết quả
-├─ runs/                         # Log huấn luyện (tensorboard, txt, …)
-├─ scripts/
-│  ├─ eval_ssd_palm.py           # Đánh giá mô hình trên tập val/test
-│  ├─ extract_rois_api.py        # API trích xuất ROI từ ảnh/stream
-│  └─ train_ssd_palm.py          # Huấn luyện mô hình
-├─ src/
-│  ├─ dataset/
-│  │  ├─ coco_palm.py            # Dataset COCO (reader/transform)
-│  │  └─ download_data.py        # Tải dữ liệu từ Roboflow
-│  ├─ metrics/
-│  │  ├─ coco_eval.py            # Tính mAP theo COCO
-│  │  └─ prf.py                  # Precision/Recall/F1, confusion matrix
-│  └─ utils/
-│     └─ common.py               # Tiện ích chung: logging, seed, v.v.
-├─ .env                          # (khuyến nghị) Biến môi trường cục bộ
-├─ .gitignore
-├─ README.md
-└─ requirements.txt
-```
-
-## 2) Yêu cầu hệ thống
-
-- Python 3.9+ (khuyến nghị 3.10/3.11)
-- PyTorch + TorchVision phù hợp CUDA (nếu dùng GPU)
-- Các gói khác trong `requirements.txt`
-
-
-## 3) Cài đặt nhanh
-
-```bash
-# 1) Tạo môi trường ảo (ví dụ venv)
-python -m venv .venv
-# Windows:
-.venv\\Scripts\\activate
-# Linux/Mac:
-source .venv/bin/activate
-
-# 2) Cài PyTorch (chọn bản phù hợp từ pytorch.org)
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121  # ví dụ CUDA 12.1
-
-# 3) Cài các phụ thuộc khác
-pip install -r requirements.txt
-```
-
-## 4) Dữ liệu
-
-```bash
-python src/dataset/download_data.py
-```
-
-Dữ liệu sẽ được tải về thư mục (ví dụ) `./roboflow_dl1/` hoặc theo cấu hình trong script.
-
-### 4.1 Dữ liệu tự có (COCO)
-
-- Chuẩn bị theo COCO: `annotations/{train,val,test}.json`, thư mục `images/`.
-- Cập nhật đường dẫn tương ứng trong `configs/ssd_palm.yaml` (mục `data`).
-
-## 5) Cấu hình (configs/ssd_palm.yaml)
-
-Mở và cập nhật những mục tối thiểu sau (tên khóa có thể khác đôi chút tùy bản code):
-
-- `data.train`, `data.val`, `data.test`: đường dẫn ảnh + annotations
-- `model.num_classes`: số lớp (bao gồm background nếu mô hình yêu cầu hoặc không, tùy kiến trúc)
-- `train.batch_size`, `train.epochs`, `train.lr`: siêu tham số cơ bản
-- `output_dir`, `log_dir`: nơi lưu checkpoint, log
-
-> Gợi ý: luôn **khóa seed** để tái lập kết quả (`seed: 42`) và bật lưu biểu đồ vào `./plots`.
-
-## 6) Huấn luyện
-
-```bash
-# Đơn giản nhất: dùng toàn bộ tham số trong YAML
-python scripts/train_ssd_palm.py --config configs/ssd_palm.yaml
-```
-
-- Checkpoints & log: `./output/` và `./runs/`
-- Biểu đồ loss/metrics (nếu có): `./plots/`
-- Nếu bạn tạo bộ dữ liệu mới, cấu hình để kết quả rơi vào `./output_newdataset/`
-
-> Trong Windows PowerShell nếu đường dẫn có khoảng trắng, nhớ thêm ngoặc kép:  
-> `python "scripts/train_ssd_palm.py" --config "configs/ssd_palm.yaml"`
-
-## 7) Đánh giá
-
-```bash
-python scripts/eval_ssd_palm.py --config configs/ssd_palm.yaml --ckpt path/to/checkpoint.pt
-```
-
-- mAP (COCO) tính bởi `src/metrics/coco_eval.py`
-- P/R/F1, ma trận nhầm lẫn bởi `src/metrics/prf.py`
-- Kết quả tổng hợp và hình vẽ nằm trong `./plots/` (và/hoặc in ra console)
-
-
-```bash
-python scripts/extract_rois_api.py
-```
-API trả về toạ độ ROI/bounding boxes và (tùy phiên bản) ảnh đã vẽ khung.
-
-## 8) Mô-đun chính
-
-- `src/dataset/coco_palm.py`: Reader COCO + augment/transform.
-- `src/metrics/coco_eval.py`: mAP theo chuẩn COCO.
-- `src/metrics/prf.py`: Precision/Recall/F1, confusion matrix.
-- `src/utils/common.py`: đặt seed, logger, lưu/đọc checkpoint, v.v.
-
-## 9) Quy trình khuyến nghị
-
-1. **Chuẩn bị dữ liệu** (Roboflow hoặc COCO của bạn).  
-2. **Cập nhật `configs/ssd_palm.yaml`** (đường dẫn + num_classes + siêu tham số).  
-3. **Huấn luyện** với `train_ssd_palm.py`.  
-4. **Đánh giá** với `eval_ssd_palm.py`, xem mAP, P/R/F1 và biểu đồ trong `plots/`.  
-5. **(Tùy chọn) Triển khai** API `extract_rois_api.py` để trích ROI tự động.
-.
+- **Loss = NaN / nổ loss**: kiểm tra bbox sai (w/h âm, vượt ảnh), learning rate quá lớn, ảnh lỗi/nhãn lỗi.
+- **Sai kênh ảnh (1ch vs 3ch)**: EfficientNet 1-channel cần đảm bảo input là grayscale đúng shape.
+- **Không khớp label**: kiểm tra lại `class_to_idx.json` và cách encode label trong train.json.
