@@ -1,0 +1,117 @@
+{
+  "checkpoint": "D:\\PMT_axtract_feature\\axtract_feature\\training\\models\\modelv6\\efficientnet_b1_1ch_roi240_best.pth",
+  "settings": {
+    "IMG_SIZE": 240,
+    "IMPOSTOR_PER_SAMPLE": 40,
+    "note": "Softmax verification (claimed_id). ROC/EER computed from unique thresholds (vectorized searchsorted). Distance matrix is cosine distance between class centroid embeddings."
+  },
+  "valid": {
+    "classification": {
+      "loss": 0.05400517501402646,
+      "acc": 99.2412746585736,
+      "top5": 99.69650986342944,
+      "macro_precision": 98.8619119878604,
+      "macro_recall": 99.2412746585736,
+      "macro_f1": 98.98836621143147,
+      "weighted_f1": 98.98836621143145,
+      "balanced_acc": 99.2412746585736,
+      "recall_zero_pct": 0.7587253414264037,
+      "recall_min": 0.0,
+      "recall_median": 100.0
+    },
+    "roc_eer_random_claim": {
+      "EER_pct": 0.15174506828528073,
+      "threshold_eer": 0.000840685679577291,
+      "roc_png": "D:\\PMT_axtract_feature\\axtract_feature\\training\\output\\outputv6\\output\\output_roc_eer\\roc_valid_random_claim.png",
+      "num_genuine": 659,
+      "num_impostor": 26360
+    }
+  },
+  "test": {
+    "classification": {
+      "loss": 0.09214853332135438,
+      "acc": 98.62909367859864,
+      "top5": 99.16222391469917,
+      "macro_precision": 98.98682877406281,
+      "macro_recall": 98.63221884498479,
+      "macro_f1": 98.51063829787235,
+      "weighted_f1": 98.5072353389185,
+      "balanced_acc": 98.63221884498479,
+      "recall_zero_pct": 0.1519756838905775,
+      "recall_min": 0.0,
+      "recall_median": 100.0
+    },
+    "roc_eer_ref_random_claim": {
+      "EER_pct": 0.30464584920030463,
+      "threshold_eer": 0.00014896277571097016,
+      "roc_png": "D:\\PMT_axtract_feature\\axtract_feature\\training\\output\\outputv6\\output\\output_roc_eer\\roc_test_random_claim.png",
+      "num_genuine": 1313,
+      "num_impostor": 52520
+    }
+  },
+  "verification_random_claim": {
+    "FAR_targets_on_valid": [
+      {
+        "target": "FAR=1%",
+        "far_target": 0.01,
+        "threshold": 2.4166325601981953e-05,
+        "far_valid_pct": 1.0015174506828528,
+        "frr_valid_pct": 0.15174506828528073,
+        "far_test_pct": 0.832063975628332,
+        "frr_test_pct": 0.15232292460015232,
+        "tar_test_pct": 99.84767707539984,
+        "num_genuine_valid": 659,
+        "num_impostor_valid": 26360,
+        "num_genuine_test": 1313,
+        "num_impostor_test": 52520
+      },
+      {
+        "target": "FAR=0.1%",
+        "far_target": 0.001,
+        "threshold": 0.0011936741648241878,
+        "far_valid_pct": 0.10242792109256449,
+        "frr_valid_pct": 0.15174506828528073,
+        "far_test_pct": 0.08187357197258188,
+        "frr_test_pct": 0.6092916984006093,
+        "tar_test_pct": 99.39070830159939,
+        "num_genuine_valid": 659,
+        "num_impostor_valid": 26360,
+        "num_genuine_test": 1313,
+        "num_impostor_test": 52520
+      },
+      {
+        "target": "FAR=0.01%",
+        "far_target": 0.0001,
+        "threshold": 0.011858884245157242,
+        "far_valid_pct": 0.011380880121396056,
+        "frr_valid_pct": 0.30349013657056145,
+        "far_test_pct": 0.01523229246001523,
+        "frr_test_pct": 0.8377760853008377,
+        "tar_test_pct": 99.16222391469917,
+        "num_genuine_valid": 659,
+        "num_impostor_valid": 26360,
+        "num_genuine_test": 1313,
+        "num_impostor_test": 52520
+      }
+    ]
+  },
+  "distance_matrix": {
+    "type": "cosine_distance_between_class_centroids",
+    "valid": {
+      "npy": "D:\\PMT_axtract_feature\\axtract_feature\\training\\output\\outputv6\\output\\output_roc_eer\\distmat_centroid_valid.npy",
+      "png": "D:\\PMT_axtract_feature\\axtract_feature\\training\\output\\outputv6\\output\\output_roc_eer\\distmat_centroid_valid.png"
+    },
+    "test": {
+      "npy": "D:\\PMT_axtract_feature\\axtract_feature\\training\\output\\outputv6\\output\\output_roc_eer\\distmat_centroid_test.npy",
+      "png": "D:\\PMT_axtract_feature\\axtract_feature\\training\\output\\outputv6\\output\\output_roc_eer\\distmat_centroid_test.png"
+    },
+    "counts_valid_minmax": [
+      0,
+      1
+    ],
+    "counts_test_minmax": [
+      0,
+      2
+    ]
+  }
+}
